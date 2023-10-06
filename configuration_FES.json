@@ -369,6 +369,10 @@
                         {
                             "node": "console_output",
                             "input": "main"
+                        },
+                        {
+                            "node": "electric_stimulator",
+                            "input": "main"
                         }
                     ]
                 }
