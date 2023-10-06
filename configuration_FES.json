@@ -1,0 +1,484 @@
+{
+    "nodes": {
+        "root": {
+            "open_bci": {
+                "module": "models.node.generator",
+                "type": "OpenBCIBoard",
+                "log_level": "TRACE",
+                "board": "SYNTHETIC_BOARD",
+                "communication": {
+                    "serial_port": "COM11"
+                },
+                "buffer_options": {
+                    "clear_output_buffer_on_generate": true
+                },
+                "outputs": {
+                    "eeg": [
+                        {
+                            "node": "merge",
+                            "input": "master_main"
+                        },
+                        {
+                            "node": "gate_marker_wait_for_board_data",
+                            "input": "condition"
+                        },
+                        {
+                            "node": "gate_timestamp_wait_for_board_data",
+                            "input": "condition"
+                        }
+                    ],
+                    "accelerometer": [],
+                    "timestamp": [
+                        {
+                            "node": "merge",
+                            "input": "master_timestamp"
+                        }
+                    ]
+                }
+            },
+            "motor_imagery_session": {
+                "module": "models.node.generator",
+                "type": "MotorImagery",
+                "buffer_options": {
+                    "clear_output_buffer_on_generate": true
+                },
+                "shuffle_when_sequence_is_finished": true,
+                "trials": [
+                    {
+                        "name": "Rest",
+                        "code": 1,
+                        "duration": {
+                            "mean": 5,
+                            "standard_deviation": 1,
+                            "maximum": 8,
+                            "minimum": 3
+                        },
+                        "cue": {
+                            "file": "D:\\GitHub\\OpenBCI_Python_Framework-main_07_2023\\OpenBCI_Python_Framework-main\\cues\\console_print.py",
+                            "parameters": {
+                                "message": "REST"
+                            }
+                        }
+                    },
+                    {
+                        "name": "Lift Leg",
+                        "code": 2,
+                        "duration": {
+                            "mean": 3,
+                            "standard_deviation": 0.001,
+                            "maximum": 4,
+                            "minimum": 2
+                        },
+                        "cue": {
+                            "file": "D:\\GitHub\\OpenBCI_Python_Framework-main_07_2023\\OpenBCI_Python_Framework-main\\cues\\console_print.py",
+                            "parameters": {
+                                "message": "LIFT LEG"
+                            }
+                        }
+                    }
+                ],
+                "outputs": {
+                    "marker": [
+                        {
+                            "node": "gate_marker_wait_for_board_data",
+                            "input": "signal"
+                        }
+                    ],
+                    "timestamp": [
+                        {
+                            "node": "gate_timestamp_wait_for_board_data",
+                            "input": "signal"
+                        }
+                    ]
+                }
+            }
+        },
+        "common": {
+            "gate_marker_wait_for_board_data": {
+                "module": "models.node.gate",
+                "type": "DynamicGate",
+                "condition": "condition_data.get_data_count()>0",
+                "buffer_options": {
+                    "clear_input_buffer_if_condition_not_met": true,
+                    "clear_output_buffer_if_condition_met": true
+                },
+                "outputs": {
+                    "main": [
+                        {
+                            "node": "merge",
+                            "input": "slave_main"
+                        }
+                    ]
+                }
+            },
+            "gate_timestamp_wait_for_board_data": {
+                "module": "models.node.gate",
+                "type": "DynamicGate",
+                "condition": "condition_data.get_data_count()>0",
+                "buffer_options": {
+                    "clear_input_buffer_if_condition_not_met": true,
+                    "clear_output_buffer_if_condition_met": true
+                },
+                "outputs": {
+                    "main": [
+                        {
+                            "node": "merge",
+                            "input": "slave_timestamp"
+                        }
+                    ]
+                }
+            },
+            "rename": {
+                "module": "models.node.processing",
+                "type": "ChannelRename",
+                "dictionary": {
+                    "main": "marker",
+                    "Fz": "CH1",
+                    "C3": "CH2",
+                    "Cz": "CH3",
+                    "C4": "CH4",
+                    "Pz": "CH5",
+                    "PO7": "CH6",
+                    "Oz": "CH7",
+                    "PO8": "CH8",
+                    "F5": "CH9",
+                    "F7": "CH10",
+                    "F3": "CH11",
+                    "F1": "CH12",
+                    "F2": "CH13",
+                    "F4": "CH14",
+                    "F6": "CH15",
+                    "F8": "CH16"
+                },
+                "buffer_options": {
+                    "clear_output_buffer_on_data_input": true,
+                    "clear_input_buffer_after_process": true,
+                    "clear_output_buffer_after_process": true
+                },
+                "outputs": {
+                    "main": [
+                        {
+                            "node": "segmenter",
+                            "input": "main"
+                        }
+                    ]
+                }
+            },
+            "merge": {
+                "module": "models.node.processing",
+                "type": "Merge",
+                "slave_filling": "sample_and_hold",
+                "enable_log": false,
+                "buffer_options": {
+                    "clear_output_buffer_on_data_input": true,
+                    "clear_input_buffer_after_process": true,
+                    "clear_output_buffer_after_process": true
+                },
+                "outputs": {
+                    "merged_main": [
+                        {
+                            "node": "rename",
+                            "input": "main"
+                        }
+                    ],
+                    "merged_timestamp": []
+                }
+            },
+            "segmenter": {
+                "module": "models.node.processing.segmenter",
+                "type": "FixedWindowSegmenter",
+                "window_size": 125,
+                "filling_value": "latest",
+                "enable_log": false,
+                "buffer_options": {
+                    "clear_output_buffer_on_data_input": true,
+                    "clear_input_buffer_after_process": false,
+                    "clear_output_buffer_after_process": true
+                },
+                "outputs": {
+                    "main": [
+                        {
+                            "node": "split",
+                            "input": "main"
+                        }
+                    ]
+                }
+            },
+            "split": {
+                "module": "models.node.processing",
+                "type": "Split",
+                "split": {
+                    "data": [
+                        "CH1",
+                        "CH2",
+                        "CH3",
+                        "CH4",
+                        "CH5",
+                        "CH6",
+                        "CH7",
+                        "CH8",
+                        "CH9",
+                        "CH10",
+                        "CH11",
+                        "CH12",
+                        "CH13",
+                        "CH14",
+                        "CH15",
+                        "CH16"
+                    ],
+                    "label": [
+                        "marker"
+                    ]
+                },
+                "enable_log": false,
+                "buffer_options": {
+                    "clear_output_buffer_on_data_input": true,
+                    "clear_input_buffer_after_process": true,
+                    "clear_output_buffer_after_process": true
+                },
+                "outputs": {
+                    "data": [
+                        {
+                            "node": "csp",
+                            "input": "data"
+                        }
+                    ],
+                    "label": [
+                        {
+                            "node": "csp",
+                            "input": "label"
+                        },
+                        {
+                            "node": "lda",
+                            "input": "label"
+                        },
+                        {
+                            "node": "actual_mode",
+                            "input": "main"
+                        }
+                    ]
+                }
+            },
+            "csp": {
+                "module": "models.node.processing.trainable.feature_extractor",
+                "type": "CSP",
+                "number_of_components": 6,
+                "training_set_size": 60,
+                "save_after_training": false,
+                "load_trained": false,
+                "enable_log": false,
+                "buffer_options": {
+                    "print_buffer_size": false,
+                    "clear_output_buffer_on_data_input": true,
+                    "clear_input_buffer_after_process": true,
+                    "clear_output_buffer_after_process": true,
+                    "clear_input_buffer_after_training": false,
+                    "process_input_buffer_after_training": true
+                },
+                "outputs": {
+                    "main": [
+                        {
+                            "node": "lda",
+                            "input": "data"
+                        }
+                    ]
+                }
+            },
+            "lda": {
+                "module": "models.node.processing.trainable.classifier",
+                "type": "LDA",
+                "discard_count": 0,
+                "training_set_size": 60,
+                "save_after_training": false,
+                "load_trained": false,
+                "enable_log": false,
+                "buffer_options": {
+                    "print_buffer_size": false,
+                    "clear_output_buffer_on_data_input": true,
+                    "clear_input_buffer_after_process": true,
+                    "clear_output_buffer_after_process": true,
+                    "clear_input_buffer_after_training": false,
+                    "process_input_buffer_after_training": true
+                },
+                "outputs": {
+                    "main": [
+                        {
+                            "node": "rename_prediction",
+                            "input": "main"
+                        }
+                    ]
+                }
+            },
+            "rename_prediction": {
+                "module": "models.node.processing",
+                "type": "ChannelRename",
+                "dictionary": {
+                    "main": "prediction"
+                },
+                "buffer_options": {
+                    "clear_output_buffer_on_data_input": true,
+                    "clear_input_buffer_after_process": true,
+                    "clear_output_buffer_after_process": true
+                },
+                "outputs": {
+                    "main": [
+                        {
+                            "node": "sequentialtimestamp_prediction",
+                            "input": "main"
+                        },
+                        {
+                            "node": "metric",
+                            "input": "predicted"
+                        }
+                    ]
+                }
+            },
+            "actual_mode": {
+                "module": "models.node.processing",
+                "type": "EpochStatistics",
+                "statistic": "mode",
+                "buffer_options": {
+                    "clear_output_buffer_on_data_input": true,
+                    "clear_input_buffer_after_process": true,
+                    "clear_output_buffer_after_process": true
+                },
+                "outputs": {
+                    "main": [
+                        {
+                            "node": "sequentialtimestamp_actual",
+                            "input": "main"
+                        },
+                        {
+                            "node": "metric",
+                            "input": "actual"
+                        }
+                    ]
+                }
+            },
+            "metric": {
+                "module": "models.node.processing",
+                "type": "Metric",
+                "metric": "accuracy",
+                "buffer_options": {
+                    "clear_output_buffer_on_data_input": true,
+                    "clear_input_buffer_after_process": true,
+                    "clear_output_buffer_after_process": true
+                },
+                "outputs": {
+                    "main": [
+                        {
+                            "node": "console_output",
+                            "input": "main"
+                        }
+                    ]
+                }
+            },
+            "electric_stimulator": {
+                "module": "models.node.output.device.serial",
+                "type": "EletroEstimuladorESP32",
+                "condition": "statistics.mean(condition_data.get_data_single_channel())>0.5",
+                "communication": {
+                    "encoding": "UTF-8",
+                    "termination": "\\n",
+                    "serial_port": "COM4",
+                    "baud_rate": 11520,
+                    "byte_size": 8,
+                    "parity": "N",
+                    "stop_bits": 1
+                },
+                "buffer_options": {
+                    "clear_output_buffer_on_data_input": true,
+                    "clear_input_buffer_after_process": true,
+                    "clear_output_buffer_after_process": true
+                }
+            },
+            "sequentialtimestamp_actual": {
+                "module": "models.node.processing",
+                "type": "SequentialTimestamp",
+                "buffer_options": {
+                    "clear_output_buffer_on_data_input": true,
+                    "clear_input_buffer_after_process": true,
+                    "clear_output_buffer_after_process": true
+                },
+                "outputs": {
+                    "main": [
+                        {
+                            "node": "merge_prediction_actual",
+                            "input": "master_main"
+                        }
+                    ],
+                    "timestamp": [
+                        {
+                            "node": "merge_prediction_actual",
+                            "input": "master_timestamp"
+                        }
+                    ]
+                }
+            },
+            "sequentialtimestamp_prediction": {
+                "module": "models.node.processing",
+                "type": "SequentialTimestamp",
+                "buffer_options": {
+                    "clear_output_buffer_on_data_input": true,
+                    "clear_input_buffer_after_process": true,
+                    "clear_output_buffer_after_process": true
+                },
+                "outputs": {
+                    "main": [
+                        {
+                            "node": "merge_prediction_actual",
+                            "input": "slave_main"
+                        }
+                    ],
+                    "timestamp": [
+                        {
+                            "node": "merge_prediction_actual",
+                            "input": "slave_timestamp"
+                        }
+                    ]
+                }
+            },
+            "merge_prediction_actual": {
+                "module": "models.node.processing",
+                "type": "Merge",
+                "slave_filling": "sample_and_hold",
+                "buffer_options": {
+                    "clear_output_buffer_on_data_input": true,
+                    "clear_input_buffer_after_process": true,
+                    "clear_output_buffer_after_process": true
+                },
+                "outputs": {
+                    "merged_main": [
+                        {
+                            "node": "csv_out",
+                            "input": "main"
+                        }
+                    ],
+                    "merged_timestamp": []
+                }
+            },
+            "console_output": {
+                "module": "models.node.output.display",
+                "type": "Console",
+                "prefix": "Acuracia = ",
+                "buffer_options": {},
+                "outputs": {
+                    "main": []
+                }
+            },
+            "csv_out": {
+                "module": "models.node.output.file",
+                "type": "CSVFile",
+                "file_path": "D:\\GitHub\\OpenBCI_Python_Framework-main_07_2023\\OpenBCI_Python_Framework-main\\test.csv",
+                "enable_log": true,
+                "buffer_options": {
+                    "print_buffer_size": true,
+                    "clear_output_buffer_on_data_input": true
+                },
+                "outputs": {
+                    "main": []
+                }
+            }
+        }
+    }
+}
